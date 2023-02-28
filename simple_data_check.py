@@ -35,11 +35,16 @@ def check_symbol_fields(sym_file):
             errors.append(F"The {sym_file} file doesn't have required fields: {', '.join(i for i in expected_fields.difference(exists_fields))}")
     symbols = sym_data.get("symbol", [])
     descriptions = sym_data.get("description", [])
-    pricescale = sym_data.get("pricescale", [])
     if len(symbols) != len(descriptions):
         errors.append(F'The number of symbols does not match the number of symbol descriptions in the {sym_file} file')
-    if len(symbols) != len(pricescale):
-        errors.append(F'The number of symbols is not equal to the number of pricescales in the {sym_file} file')
+    pricescale = sym_data["pricescale"]
+    if isinstance(pricescale, list):
+        if len(symbols) != len(pricescale):
+            errors.append(F'The number of symbols is not equal to the number of pricescales in the {sym_file} file')
+    currency = sym_data["currency"]
+    if isinstance(currency, list):
+        if len(symbols) != len(currency):
+            errors.append(F'The number of symbols is not equal to the number of currencies in the {sym_file} file')
     return symbols, errors
 
 
