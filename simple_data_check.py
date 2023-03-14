@@ -6,17 +6,59 @@ the specification: https://github.com/tradingview-pine-seeds/pine-seeds-docs/blo
 
 
 import json
+import os
 from os import getenv
 from os.path import exists, isfile
 from sys import exit as sys_exit
 from datetime import datetime
+from re import compile as re_compile
+
+
+TODAY = datetime.now().strftime("%Y%m%dT")
+FLOAT_RE = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
 
 
 def fail(msg):
     """ report about fail and exit with non-zero exit code"""
-    print(msg)
-    print('Checks failed. If you cannot resolve the issue, contact pine.seeds@tradingview.com with the Pine Seeds Issue subject.')
-    sys_exit(1)
+    with open(os.path.join("..", "report.txt"), "a") as file:
+        file.write(msg)
+    sys_exit(0)
+
+
+def check_type(values, val_type):
+    """ check that values is list of types or single type value """
+    if isinstance(values, list):
+        for val in values:
+            if not isinstance(val, val_type):
+                return False
+        return True
+    else:
+        return isinstance(values, val_type)
+
+
+def check_length(values: any, max_length: int):
+    """ check length of each element in values. Return True only when all elements have length less or equal to max_length."""
+    if isinstance(values, list):
+        for val in values:
+            if len(val) > max_length:
+                return False
+    else:
+        return len(values) <= max_length
+    return True
+
+
+def check_field_data(name, values, val_type, max_length, quantity, sym_file):
+    """ check the field data according type, max_length and quantity of elements """
+    errors = []
+    if not check_type(values, val_type):
+        s_type = F'{"string" if val_type.__name__ == "str" else "integer"}'
+        errors.append(F'The type of {name} filed must be {s_type} or array of {s_type}s in the {sym_file} file')
+        return errors
+    if max_length > 0 and not check_length(values, max_length):
+        errors.append(F'The length of some elements in {name} field exceeds maximum allowed length in the {sym_file} file')
+    if quantity > 0 and isinstance(values, list) and len(values) != quantity:
+        errors.append(F'The number of {name} field does not match the number of symbol in the {sym_file} file')
+    return errors
 
 
 def check_symbol_fields(sym_file):
@@ -26,25 +68,28 @@ def check_symbol_fields(sym_file):
         return [], [F'The symbol info file "{sym_file}" does not exist']
     with open(sym_file) as file:
         sym_data = json.load(file)
-    expected_fields = {"symbol", "description", "pricescale", "currency"}
+    expected_fields = set(("symbol", "description", "pricescale", "currency"))
     exists_fields = set(sym_data.keys())
     if exists_fields != expected_fields:
         if expected_fields.issubset(exists_fields):
             errors.append(F"The {sym_file} file contains unexpected fields: {', '.join(exists_fields.difference(expected_fields))}")
         else:
             errors.append(F"The {sym_file} file doesn't have required fields: {', '.join(i for i in expected_fields.difference(exists_fields))}")
-    symbols = sym_data.get("symbol", [])
-    descriptions = sym_data.get("description", [])
-    if len(symbols) != len(descriptions):
-        errors.append(F'The number of symbols does not match the number of symbol descriptions in the {sym_file} file')
+        return [], errors
+    symbols = sym_data["symbol"]
+    errors = check_field_data("symbol", symbols, str, 128, 0, sym_file)
+    if len(errors) > 0:
+        return [], errors
+    length = len(symbols) if isinstance(symbols, list) else 1
+    descriptions = sym_data["description"]
+    errors += check_field_data("description", descriptions, str, 128, length, sym_file)
+    desc_length = len(descriptions) if isinstance(descriptions, list) else 1
+    if desc_length != length:  # strictly check descriptions length
+        errors.append(F'The number of symbol descriptions does not much the number of symbols in {sym_file} file')
     pricescale = sym_data["pricescale"]
-    if isinstance(pricescale, list):
-        if len(symbols) != len(pricescale):
-            errors.append(F'The number of symbols is not equal to the number of pricescales in the {sym_file} file')
+    errors += check_field_data("pricescale", pricescale, int, 0, length, sym_file)
     currency = sym_data["currency"]
-    if isinstance(currency, list):
-        if len(symbols) != len(currency):
-            errors.append(F'The number of symbols is not equal to the number of currencies in the {sym_file} file')
+    errors += check_field_data("currency", currency, str, 128, length, sym_file)
     return symbols, errors
 
 
@@ -65,18 +110,23 @@ def check_line_data(data_line, file_path, i):
         messages.append(F'{file_path}:{i} contains incorrect number of elements (expected: 6, actual: {len(vals)})')
         return messages, date
     try:
-        open_price, high_price, low_price, close_price = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4])
-        _, volume = datetime.strptime(vals[0], '%Y%m%dT'), float(vals[5])
+        for val in (vals[i] for i in range(1, 6)):
+            if FLOAT_RE.match(val) is None:
+                raise ValueError
         if len(vals[0]) != 9:  # value '202291T' is considered as correct date 2022/09/01 by datetime.strptime but specification require zero-padded values
             raise ValueError
+        open_price, high_price, low_price, close_price = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4])
+        _, volume = datetime.strptime(vals[0], '%Y%m%dT'), float(vals[5])
     except (ValueError, TypeError):
-        messages.append(F'{file_path}:{i} contains invalid value types. Types must be: string(YYYYMMDDT), float, float, float, float, float.')
+        messages.append(F'{file_path}:{i} contains invalid value types. Types must be: string(YYYYMMDDT), float, float, float, float, float. The float can\'t be NAN/+INF/-INF')
     else:
         date = vals[0]
         if not (open_price <= high_price >= close_price >= low_price <= open_price and high_price >= low_price):
             messages.append(F'{file_path}:{i} contains invalid OHLC values. Values must comply with the rules: h >= o, h >= l, h >= c, l <= o, l <= c).')
         if volume < 0:
             messages.append(F'{file_path}:{i} contains invalid volume value. The value must be positive.')
+        if date > TODAY:
+            messages.append(F'{file_path}:{i} contains date in future. The data must be today or before today.')
     return messages, date
 
 
@@ -110,10 +160,11 @@ def main():
                     last_date = date
                     dates.add(date)
     if len(problems["missed_files"]) > 0:
-        print(F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}')
+        warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}'
+        with open(os.path.join("..", "warnings.txt"), "a") as file:
+            file.write(warning)
     if len(problems["errors"]) > 0:
         fail('ERROR: the following issues were found in the repository files:\n ' + ("\n ".join(problems["errors"])))
-    print("All checks passed successfully")
 
 
 if __name__ == "__main__":
