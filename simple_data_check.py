@@ -16,6 +16,9 @@ from re import compile as re_compile
 
 TODAY = datetime.now().strftime("%Y%m%dT")
 FLOAT_RE = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
+SYMBOL_RE = re_compile(r'^[_.0-9A-Z]+$')
+CURRENCY_RE = re_compile(r'^[0-9A-Z]*$')
+PRICESCALE_RE = re_compile(r'^1(0){0,18}$')
 
 
 def fail(msg):
@@ -47,7 +50,18 @@ def check_length(values: any, max_length: int):
     return True
 
 
-def check_field_data(name, values, val_type, max_length, quantity, sym_file):
+def check_regexp(values, regexp):
+    """ check that str() of each element in values match to provided regexp """
+    if isinstance(values, list):
+        for val in values:
+            if regexp.match(str(val)) is None:
+                return False
+    else:
+        return regexp.match(str(values)) is not None
+    return True
+
+
+def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_file):
     """ check the field data according type, max_length and quantity of elements """
     errors = []
     if not check_type(values, val_type):
@@ -56,16 +70,16 @@ def check_field_data(name, values, val_type, max_length, quantity, sym_file):
         return errors
     if max_length > 0 and not check_length(values, max_length):
         errors.append(F'The length of some elements in {name} field exceeds maximum allowed length in the {sym_file} file')
+    if regexp is not None and not check_regexp(values, regexp):
+        errors.append(F'Some elements in {name} field contains not allowed characters in the {sym_file} file')
     if quantity > 0 and isinstance(values, list) and len(values) != quantity:
         errors.append(F'The number of {name} field does not match the number of symbol in the {sym_file} file')
     return errors
 
 
-def check_symbol_fields(sym_file):
-    """ check symbol file fields """
+def check_symbol_info(sym_file):
+    """ check symbol file """
     errors = []
-    if not (exists(sym_file) and isfile(sym_file)):
-        return [], [F'The symbol info file "{sym_file}" does not exist']
     with open(sym_file) as file:
         sym_data = json.load(file)
     expected_fields = set(("symbol", "description", "pricescale", "currency"))
@@ -77,23 +91,23 @@ def check_symbol_fields(sym_file):
             errors.append(F"The {sym_file} file doesn't have required fields: {', '.join(i for i in expected_fields.difference(exists_fields))}")
         return [], errors
     symbols = sym_data["symbol"]
-    errors = check_field_data("symbol", symbols, str, 128, 0, sym_file)
+    errors = check_field_data("symbol", symbols, str, SYMBOL_RE, 128, 0, sym_file)
     if len(errors) > 0:
         return [], errors
     length = len(symbols) if isinstance(symbols, list) else 1
     descriptions = sym_data["description"]
-    errors += check_field_data("description", descriptions, str, 128, length, sym_file)
+    errors += check_field_data("description", descriptions, str, None, 128, length, sym_file)
     desc_length = len(descriptions) if isinstance(descriptions, list) else 1
     if desc_length != length:  # strictly check descriptions length
         errors.append(F'The number of symbol descriptions does not much the number of symbols in {sym_file} file')
     pricescale = sym_data["pricescale"]
-    errors += check_field_data("pricescale", pricescale, int, 0, length, sym_file)
+    errors += check_field_data("pricescale", pricescale, int, PRICESCALE_RE, 0, length, sym_file)
     currency = sym_data["currency"]
-    errors += check_field_data("currency", currency, str, 128, length, sym_file)
+    errors += check_field_data("currency", currency, str, CURRENCY_RE, 128, length, sym_file)
     return symbols, errors
 
 
-def check_line_data(data_line, file_path, i):
+def check_data_line(data_line, file_path, i):
     """ check values of data file's line """
     messages = []
     date = None
@@ -126,8 +140,31 @@ def check_line_data(data_line, file_path, i):
         if volume < 0:
             messages.append(F'{file_path}:{i} contains invalid volume value. The value must be positive.')
         if date > TODAY:
-            messages.append(F'{file_path}:{i} contains date in future. The data must be today or before today.')
+            messages.append(F'{file_path}:{i} contains date in future. The date must be today or before today.')
+        if date < "19000101T":
+            messages.append(F'{file_path}:{i} contains too old date. The date must be 1 Jan 1900 or after.')
     return messages, date
+
+
+def check_datafile(file_path, problems):
+    """ Check data file """
+    dates = set()
+    last_date = ""
+    double_dates = False
+    unordered_dates = False 
+    with open(file_path) as file:
+        for i, line in enumerate(l.rstrip('\n') for l in file):
+            wrong, date = check_data_line(line, file_path, i+1)
+            problems["errors"].extend(wrong)
+            if date is not None:
+                if not double_dates and (date in dates):
+                    double_dates = True
+                    problems["errors"].append(F'{file_path} contains duplicate dates. First duplicate: {date} in line {i+1}.')
+                if not unordered_dates and (date < last_date):
+                    unordered_dates = True
+                    problems["errors"].append(F'{file_path} has unordered dates. First unordered date: {date} in line {i+1}.')
+                last_date = date
+                dates.add(date)
 
 
 def main():
@@ -135,30 +172,20 @@ def main():
     group = getenv("GROUP")
     if group == "":
         fail("ERROR: the GROUP environment variable is not set")
-    symbols, sym_errors = check_symbol_fields(F"symbol_info/{group}.json")
-    problems = {"errors": sym_errors, "missed_files": []}
+    sym_file_path = F"symbol_info/{group}.json"
+    problems = {"errors": [], "missed_files": []}
+    if not (exists(sym_file_path) and isfile(sym_file_path)):
+        problems["errors"] = F'The symbol info file "{sym_file_path}" does not exist'
+        symbols = []
+    else:
+        symbols, sym_errors = check_symbol_info(sym_file_path)
+        problems["errors"] = sym_errors
     for symbol in symbols:
         file_path = F'data/{symbol}.csv'
-        if not exists(file_path):
+        if not (exists(file_path) and isfile(file_path)):
             problems["missed_files"].append(symbol)
             continue
-        dates = set()
-        last_date = ""
-        double_dates = False
-        unordered_dates = False
-        with open(file_path) as file:
-            for i, line in enumerate(l.rstrip('\n') for l in file):
-                wrong, date = check_line_data(line, file_path, i+1)
-                problems["errors"].extend(wrong)
-                if date is not None:
-                    if not double_dates and (date in dates):
-                        double_dates = True
-                        problems["errors"].append(F'{file_path} contains duplicate dates. First duplicate: {date} in line {i+1}.')
-                    if not unordered_dates and (date < last_date):
-                        unordered_dates = True
-                        problems["errors"].append(F'{file_path} has unordered dates. First unordered date: {date} in line {i+1}.')
-                    last_date = date
-                    dates.add(date)
+        check_datafile(file_path, problems)
     if len(problems["missed_files"]) > 0:
         warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}'
         with open(os.path.join("..", "warnings.txt"), "a") as file:
