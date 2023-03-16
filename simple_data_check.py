@@ -9,7 +9,7 @@ import json
 import os
 from os import getenv
 from os.path import exists, isfile
-from sys import exit as sys_exit
+from sys import exit as sys_exit, argv
 from datetime import datetime
 from re import compile as re_compile
 
@@ -19,11 +19,12 @@ FLOAT_RE = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
 SYMBOL_RE = re_compile(r'^[_.0-9A-Z]+$')
 CURRENCY_RE = re_compile(r'^[0-9A-Z]*$')
 PRICESCALE_RE = re_compile(r'^1(0){0,18}$')
+REPORTS_PATH = argv[1] if len(argv) > 1 else "."
 
 
 def fail(msg):
     """ report about fail and exit with non-zero exit code"""
-    with open(os.path.join("..", "report.txt"), "a") as file:
+    with open(os.path.join(REPORTS_PATH, "report.txt"), "a") as file:
         file.write(msg)
     sys_exit(0)
 
@@ -77,6 +78,18 @@ def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_f
     return errors
 
 
+def get_duplicates(items: list):
+    """ Returns the set of duplicated items in list """
+    existing = set()
+    dup = set()
+    for item in items:
+        if item in existing:
+            dup.add(item)
+        else:
+            existing.add(item)
+    return dup
+
+
 def check_symbol_info(sym_file):
     """ check symbol file """
     errors = []
@@ -92,6 +105,8 @@ def check_symbol_info(sym_file):
         return [], errors
     symbols = sym_data["symbol"]
     errors = check_field_data("symbol", symbols, str, SYMBOL_RE, 128, 0, sym_file)
+    if len(set(symbols)) != len(symbols):
+        errors.append(F"The {sym_file} file contain duplicated symbols: {', '.join(get_duplicates(symbols))}. All symbols must have unique names.")
     if len(errors) > 0:
         return [], errors
     length = len(symbols) if isinstance(symbols, list) else 1
@@ -151,7 +166,7 @@ def check_datafile(file_path, problems):
     dates = set()
     last_date = ""
     double_dates = False
-    unordered_dates = False 
+    unordered_dates = False
     with open(file_path) as file:
         for i, line in enumerate(l.rstrip('\n') for l in file):
             wrong, date = check_data_line(line, file_path, i+1)
@@ -175,7 +190,7 @@ def main():
     sym_file_path = F"symbol_info/{group}.json"
     problems = {"errors": [], "missed_files": []}
     if not (exists(sym_file_path) and isfile(sym_file_path)):
-        problems["errors"] = F'The symbol info file "{sym_file_path}" does not exist'
+        problems["errors"] = [F'The symbol info file "{sym_file_path}" does not exist']
         symbols = []
     else:
         symbols, sym_errors = check_symbol_info(sym_file_path)
@@ -187,11 +202,12 @@ def main():
             continue
         check_datafile(file_path, problems)
     if len(problems["missed_files"]) > 0:
-        warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}'
-        with open(os.path.join("..", "warnings.txt"), "a") as file:
+        warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
+        with open(os.path.join(REPORTS_PATH, "warnings.txt"), "a") as file:
             file.write(warning)
     if len(problems["errors"]) > 0:
-        fail('ERROR: the following issues were found in the repository files:\n ' + ("\n ".join(problems["errors"])))
+        problems_list = "\n ".join(problems["errors"])
+        fail(F'ERROR: the following issues were found in the repository files:\n {problems_list}\n')
 
 
 if __name__ == "__main__":
