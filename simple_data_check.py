@@ -19,14 +19,7 @@ FLOAT_RE = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
 SYMBOL_RE = re_compile(r'^[_.0-9A-Z]+$')
 CURRENCY_RE = re_compile(r'^[0-9A-Z]*$')
 PRICESCALE_RE = re_compile(r'^1(0){0,18}$')
-REPORTS_PATH = argv[1] if len(argv) > 1 else "."
-
-
-def fail(msg):
-    """ report about fail and exit with non-zero exit code"""
-    with open(os.path.join(REPORTS_PATH, "report.txt"), "a") as file:
-        file.write(msg)
-    sys_exit(0)
+REPORTS_PATH = argv[1] if len(argv) > 1 else None
 
 
 def check_type(values, val_type):
@@ -182,6 +175,16 @@ def check_datafile(file_path, problems):
                 dates.add(date)
 
 
+def fail(msg):
+    """ report about fail and exit with non-zero exit code"""
+    if REPORTS_PATH is None:
+        print(msg)
+        sys_exit(1)
+    with open(os.path.join(REPORTS_PATH, "report.txt"), "a") as file:
+        file.write(msg)
+    sys_exit(0)
+
+
 def main():
     """ main routine """
     group = getenv("GROUP")
@@ -201,10 +204,15 @@ def main():
             problems["missed_files"].append(symbol)
             continue
         check_datafile(file_path, problems)
+    # report warnings
     if len(problems["missed_files"]) > 0:
         warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
-        with open(os.path.join(REPORTS_PATH, "warnings.txt"), "a") as file:
-            file.write(warning)
+        if REPORTS_PATH is None:
+            print(warning)
+        else:
+            with open(os.path.join(REPORTS_PATH, "warnings.txt"), "a") as file:
+                file.write(warning)
+    # report errors
     if len(problems["errors"]) > 0:
         problems_list = "\n ".join(problems["errors"])
         fail(F'ERROR: the following issues were found in the repository files:\n {problems_list}\n')
