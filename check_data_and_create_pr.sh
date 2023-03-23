@@ -3,6 +3,7 @@ set -e
 
 BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
 git checkout -b ${BRANCH_NAME}
+pit push
 
 export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
