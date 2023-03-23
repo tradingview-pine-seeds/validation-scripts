@@ -1,17 +1,15 @@
 #!/bin/bash
 set -e
 
-BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
-git checkout -b ${BRANCH_NAME}
+PR_BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
+git checkout -b ${PR_BRANCH_NAME}
 
-git push --set-upstream origin ${BRANCH_NAME} 
+git push --set-upstream origin ${PR_BRANCH_NAME} 
 
 export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
 
 scripts/close_pr_if_exists.sh
 
-# echo ${GITHUB_TOKEN} | gh auth login --with-token
-
 export GH_TOKEN=${GITHUB_TOKEN}
-gh api -X POST /repos/tradingview-pine-seeds/${REPO_NAME}/pulls -f base="master" -f head="${REPO_OWNER}:${BRANCH_NAME}" -f title="Upload data"
+gh api -X POST /repos/tradingview-pine-seeds/${REPO_NAME}/pulls -f base="master" -f head="${REPO_OWNER}:${PR_BRANCH_NAME}" -f title="Upload data"
