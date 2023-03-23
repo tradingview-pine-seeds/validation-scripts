@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-echo ${GITHUB_TOKEN} | gh auth login --with-token
-
-
 BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
 git checkout -b ${BRANCH_NAME}
 
