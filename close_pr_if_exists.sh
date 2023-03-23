@@ -20,7 +20,7 @@ if [ "$EXISTING_PRS" != "[]" ]; then
         exit 1
     fi
     HEAD_LABEL=$(echo "$EXISTING_PRS" | jq -r ".[0].head.label")
-    if [ "$HEAD_LABEL" != "$REPO_OWNER:master" ]; then
+    if [ "${HEAD_LABEL%:*}" != "$REPO_OWNER" ]; then
         echo "head = $HEAD_LABEL is incorrect"
         exit 1
     fi
