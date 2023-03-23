@@ -3,7 +3,7 @@ set -e
 
 BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
 git checkout -b ${BRANCH_NAME}
-git push
+git push --set-upstream origin ${BRANCH_NAME} 
 
 export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
