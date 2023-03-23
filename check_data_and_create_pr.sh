@@ -2,9 +2,9 @@
 set -e
 
 PR_BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
-git checkout -b ${PR_BRANCH_NAME}
+git checkout -b ${PR_BRANCH_NAME} > /dev/null 2>&1
 
-git push --set-upstream origin ${PR_BRANCH_NAME} 
+git push --set-upstream origin ${PR_BRANCH_NAME} > /dev/null 2>&1
 
 export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
