@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+export TOKEN={GITHUB_TOKEN}
+bash scripts/validate_token.sh
+
 PR_BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
 git checkout -b ${PR_BRANCH_NAME} > /dev/null 2>&1
 
