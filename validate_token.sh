@@ -13,7 +13,7 @@ then
 fi
 
 if  [[ "$RESP" == *"error"* ]];
-tben
+then
   echo "ACTION_TOKEN has not enough scopes, please provide ACTION_TOKEN with repo, workflow and admin:org scopes"
   exit 1
 fi
