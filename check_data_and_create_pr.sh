@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-export TOKEN={GITHUB_TOKEN}
+export TOKEN=${GITHUB_TOKEN}
 bash scripts/validate_token.sh
 
 # checkout fork repo (via temp dir as current dir is not emply and it does't allow to check out repo in it)
-git clone "https://github.com/${REPO_OWNER}/${REPO_NAME}.git" temp
+git clone "https://${REPO_OWNER}:${GITHUB_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git" temp
 mv temp/* .
 mv temp//git* .
 rmdir temp
