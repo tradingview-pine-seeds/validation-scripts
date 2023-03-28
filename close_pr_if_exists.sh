@@ -26,6 +26,7 @@ if [ "$EXISTING_PRS" != "[]" ]; then
         exit 1
     fi
     NUM=$(echo "$EXISTING_PRS" | jq -r ".[0].number")
-    gh --repo tradingview-pine-seeds/"$REPO_NAME" pr close "$NUM" --delete-branch
-    
+    gh --repo tradingview-pine-seeds/"$REPO_NAME" pr close "$NUM"
+    BRANCH="${HEAD_LABEL#*:}"
+    gh api -X DELETE "repos/${OWNER}/${REPO_NAME}/git/refs/heads/${BRANCH}"
 fi
