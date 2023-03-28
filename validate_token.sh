@@ -2,7 +2,7 @@
 if [ -z "${TOKEN}" ]
 then
   echo "Unable to fine ACTION_TOKEN. Please make sure that ACTION_TOKEN is set in the repository secrets"
-  wxit 1
+  exit 1
 fi
 
 RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1 | head -n1)
