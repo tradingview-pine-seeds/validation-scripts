@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-git clone "https://github.com/tradingview-pine-seeds/validation-scripts.git" scripts
-
 export TOKEN={GITHUB_TOKEN}
 bash scripts/validate_token.sh
 
