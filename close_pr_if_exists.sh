@@ -20,10 +20,12 @@ if [ "$EXISTING_PRS" != "[]" ]; then
         exit 1
     fi
     HEAD_LABEL=$(echo "$EXISTING_PRS" | jq -r ".[0].head.label")
-    if [ "${HEAD_LABEL%:*}" != "$REPO_OWNER" ]; then
+    OWNER="${HEAD_LABEL%:*}"
+    if [ "${OWNER}" != "$REPO_OWNER" ]; then
         echo "head = $HEAD_LABEL is incorrect"
         exit 1
     fi
     NUM=$(echo "$EXISTING_PRS" | jq -r ".[0].number")
-    gh --repo tradingview-pine-seeds/"$REPO_NAME" pr close "$NUM"
+    gh --repo tradingview-pine-seeds/"$REPO_NAME" pr close "$NUM" --delete-branch
+    
 fi
