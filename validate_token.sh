@@ -1,7 +1,7 @@
 
 if [ -z "${TOKEN}" ]
 then
-  echo "Unable to fine ACTION_TOKEN. Please make sure that ACTION_TOKEN is set in the repository secrets"
+  echo "Unable to find ACTION_TOKEN. Please make sure that ACTION_TOKEN is set in the repository secrets"
   exit 1
 fi
 
