@@ -8,6 +8,7 @@ fi
 RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1)
 if [ $? -ne 0 ]
 then
+    echo $RESP
     echo "Authorization failed. Please check that your ACTION_TOKEN is valid and not expired."
     exit 1
 fi
