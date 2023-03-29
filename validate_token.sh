@@ -5,8 +5,7 @@ then
   exit 1
 fi
 
-gh auth logout --hostname github.com
-RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1 | head -n1)
+RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1)
 if [ -z $? ]
 then
     echo "Authorization failed. Please check that your ACTION_TOKEN is valid and not expired."
