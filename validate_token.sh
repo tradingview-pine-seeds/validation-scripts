@@ -5,7 +5,7 @@ then
   exit 1
 fi
 
-gh auth logout
+gh auth logout --hostname github.com
 RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1 | head -n1)
 if [ -z $? ]
 then
