@@ -5,6 +5,7 @@ then
   exit 1
 fi
 
+gh auth logout
 RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1 | head -n1)
 if [ -z $? ]
 then
