@@ -1,11 +1,11 @@
 
-if [ -z "${TOKEN}" ]
+if [ -z "${ACTION_TOKEN}" ]
 then
   echo "Unable to find ACTION_TOKEN. Please make sure that ACTION_TOKEN is set in the repository secrets"
   exit 1
 fi
 
-RESP=$(echo "${TOKEN}" | gh auth login --with-token 2>&1)
+RESP=$(echo "${ACTION_TOKEN}" | gh auth login --with-token 2>&1)
 if [ $? -ne 0 ]
 then
     echo $RESP
