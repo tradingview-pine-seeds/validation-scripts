@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "${TOKEN}" | gh auth login --with-token > /dev/null 2>&1
+echo "${ACTION_TOKEN}" | gh auth login --with-token > /dev/null 2>&1
 if [ -z $? ]
 then
     echo "Authorization failed. Update ACTION_TOKEN in the repository secrets."
