@@ -20,20 +20,18 @@ fi
 
 SCOPES=$(gh auth status  2>&1 | grep "scopes")
 valid=true
-if [[ "$SCOPES" == *"workflow"* ]]; then
-  echo "Workflow scope is found in your ACTION_TOKEN"
-  else
-    echo "ACTION_TOKEN has no workflow scope, please provide ACTION_TOKEN with workflow scope"
-    valid=false
+if [[ "$SCOPES" != *"workflow"* ]]; then
+  echo "ACTION_TOKEN has no workflow scope, please provide ACTION_TOKEN with workflow scope"
+  valid=false
 fi
 
-if [[ "$SCOPES" == *"admin:org"* ]]; then
-  echo "Admin:org scope is found in your ACTION_TOKEN"
-  else
-    echo "ACTION_TOKEN has no admin:org scope, please provide ACTION_TOKEN with admin:org scope"
-    valid=false
+if [[ "$SCOPES" != *"admin:org"* ]]; then
+  echo "ACTION_TOKEN has no admin:org scope, please provide ACTION_TOKEN with admin:org scope"
+  valid=false
 fi
 
 if ! $valid ; then
   exit 1
 fi
+
+echo "ACTION_TOKEN validation successful"
