@@ -17,8 +17,8 @@ from re import compile as re_compile
 TODAY = datetime.now().strftime("%Y%m%dT")
 FLOAT_RE = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
 SYMBOL_RE = re_compile(r'^[_.0-9A-Z]+$')
-CURRENCY_RE = re_compile(r'^[0-9A-Z]*$')
-PRICESCALE_RE = re_compile(r'^1(0){0,18}$')
+DESCRIPTION_RE = re_compile(r'^.+$')
+PRICESCALE_RE = re_compile(r'^1(0){0,22}$')
 REPORTS_PATH = argv[1] if len(argv) > 1 else None
 
 
@@ -63,7 +63,7 @@ def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_f
         errors.append(F'The type of {name} filed must be {s_type} or array of {s_type}s in the {sym_file} file')
         return errors
     if max_length > 0 and not check_length(values, max_length):
-        errors.append(F'The length of some elements in {name} field exceeds maximum allowed length in the {sym_file} file')
+        errors.append(F'The length of some elements in {name} field exceeds maximum allowed length ({max_length}) in the {sym_file} file')
     if regexp is not None and not check_regexp(values, regexp):
         errors.append(F'Some elements in {name} field contains not allowed characters in the {sym_file} file')
     if quantity > 0 and isinstance(values, list) and len(values) != quantity:
@@ -88,7 +88,7 @@ def check_symbol_info(sym_file):
     errors = []
     with open(sym_file) as file:
         sym_data = json.load(file)
-    expected_fields = set(("symbol", "description", "pricescale", "currency"))
+    expected_fields = set(("symbol", "description", "pricescale"))
     exists_fields = set(sym_data.keys())
     if exists_fields != expected_fields:
         if expected_fields.issubset(exists_fields):
@@ -97,21 +97,19 @@ def check_symbol_info(sym_file):
             errors.append(F"The {sym_file} file doesn't have required fields: {', '.join(i for i in expected_fields.difference(exists_fields))}")
         return [], errors
     symbols = sym_data["symbol"]
-    errors = check_field_data("symbol", symbols, str, SYMBOL_RE, 128, 0, sym_file)
+    errors = check_field_data("symbol", symbols, str, SYMBOL_RE, 42, 0, sym_file)
     if len(set(symbols)) != len(symbols):
         errors.append(F"The {sym_file} file contain duplicated symbols: {', '.join(get_duplicates(symbols))}. All symbols must have unique names.")
     if len(errors) > 0:
         return [], errors
     length = len(symbols) if isinstance(symbols, list) else 1
     descriptions = sym_data["description"]
-    errors += check_field_data("description", descriptions, str, None, 128, length, sym_file)
+    errors += check_field_data("description", descriptions, str, DESCRIPTION_RE, 128, length, sym_file)
     desc_length = len(descriptions) if isinstance(descriptions, list) else 1
     if desc_length != length:  # strictly check descriptions length
         errors.append(F'The number of symbol descriptions does not much the number of symbols in {sym_file} file')
     pricescale = sym_data["pricescale"]
     errors += check_field_data("pricescale", pricescale, int, PRICESCALE_RE, 0, length, sym_file)
-    currency = sym_data["currency"]
-    errors += check_field_data("currency", currency, str, CURRENCY_RE, 128, length, sym_file)
     return symbols, errors
 
 
