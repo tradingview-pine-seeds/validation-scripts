@@ -60,14 +60,19 @@ def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_f
     errors = []
     if not check_type(values, val_type):
         s_type = F'{"string" if val_type.__name__ == "str" else "integer"}'
-        errors.append(F'The type of {name} filed must be {s_type} or array of {s_type}s in the {sym_file} file')
+        errors.append(F'The {name} type specified in {sym_file} must be a {s_type} or an array of {s_type}s')
         return errors
     if max_length > 0 and not check_length(values, max_length):
-        errors.append(F'The length of some elements in {name} field exceeds maximum allowed length ({max_length}) in the {sym_file} file')
+        errors.append(F'The {name} field in {sym_file} contains elements whose length exceeds the maximum allowed length: ({max_length})')
     if regexp is not None and not check_regexp(values, regexp):
-        errors.append(F'Some elements in {name} field contains not allowed characters in the {sym_file} file')
+        if name == "symbol":
+            errors.append(F'The {sym_file} file contains invalid characters for the "symbol" field')
+        elif name == "description":
+            errors.append(F'The {sym_file} file contains empty "description" fields')
+        else:  # "pricescale"
+            errors.append(F'The {sym_file} file contains invalid values for the "pricescale" field. The value format is 10^n, where n is the number of decimal places: 1, 10, …, 10000000000000000000000.')
     if quantity > 0 and isinstance(values, list) and len(values) != quantity:
-        errors.append(F'The number of {name} field does not match the number of symbol in the {sym_file} file')
+        errors.append(F'The number of the {name} fields does not match the number of symbols in {sym_file}')
     return errors
 
 
@@ -107,7 +112,7 @@ def check_symbol_info(sym_file):
     errors += check_field_data("description", descriptions, str, DESCRIPTION_RE, 128, length, sym_file)
     desc_length = len(descriptions) if isinstance(descriptions, list) else 1
     if desc_length != length:  # strictly check descriptions length
-        errors.append(F'The number of symbol descriptions does not much the number of symbols in {sym_file} file')
+        errors.append(F'The number of symbol descriptions does not match the number of symbols in {sym_file}')
     pricescale = sym_data["pricescale"]
     errors += check_field_data("pricescale", pricescale, int, PRICESCALE_RE, 0, length, sym_file)
     return symbols, errors
@@ -138,7 +143,7 @@ def check_data_line(data_line, file_path, i):
         open_price, high_price, low_price, close_price = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4])
         _, volume = datetime.strptime(vals[0], '%Y%m%dT'), float(vals[5])
     except (ValueError, TypeError):
-        messages.append(F'{file_path}:{i} contains invalid value types. Types must be: string(YYYYMMDDT), float, float, float, float, float. The float can\'t be NAN/+INF/-INF')
+        messages.append(F'{file_path}:{i} contains invalid value types. Types must be: string(YYYYMMDDT), float, float, float, float, float. The float value can\'t be NAN/+INF/-INF')
     else:
         date = vals[0]
         if not (open_price <= high_price >= close_price >= low_price <= open_price and high_price >= low_price):
@@ -146,9 +151,9 @@ def check_data_line(data_line, file_path, i):
         if volume < 0:
             messages.append(F'{file_path}:{i} contains invalid volume value. The value must be positive.')
         if date > TODAY:
-            messages.append(F'{file_path}:{i} contains date in future. The date must be today or before today.')
+            messages.append(F'{file_path}:{i} contains a date in the future. The date must be today or earlier.')
         if date < "19000101T":
-            messages.append(F'{file_path}:{i} contains too old date. The date must be 1 Jan 1900 or after.')
+            messages.append(F'{file_path}:{i} contains a date that is too old. The date must be January 1, 1900 or later.')
     return messages, date
 
 
@@ -191,7 +196,7 @@ def main():
     sym_file_path = F"symbol_info/{group}.json"
     problems = {"errors": [], "missed_files": []}
     if not (exists(sym_file_path) and isfile(sym_file_path)):
-        problems["errors"] = [F'The symbol info file "{sym_file_path}" does not exist']
+        problems["errors"] = [F'The "{sym_file_path}" file does not exist. Check that you have not deleted the file or modified its name/path']
         symbols = []
     else:
         symbols, sym_errors = check_symbol_info(sym_file_path)
