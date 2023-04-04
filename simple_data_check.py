@@ -70,7 +70,7 @@ def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_f
         elif name == "description":
             errors.append(F'The {sym_file} file contains empty "description" fields')
         else:  # "pricescale"
-            errors.append(F'The {sym_file} file contains invalid values for the "pricescale" field. The value format is 10^n, where n is the number of decimal places: 1, 10, …, 10000000000000000000000.')
+            errors.append(F'The {sym_file} file contains invalid values for the 'pricescale' field. The value should be a power of 10: 1, 10, …, 10000000000000000000000. The number of zeros represents the number of decimal places.')
     if quantity > 0 and isinstance(values, list) and len(values) != quantity:
         errors.append(F'The number of the {name} fields does not match the number of symbols in {sym_file}')
     return errors
