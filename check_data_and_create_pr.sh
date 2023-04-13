@@ -20,7 +20,7 @@ export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
 
 # close previous PR if it exists
-scripts/close_pr_if_exists.sh
+bash scripts/close_pr_if_exists.sh
 
 # create new PR
 export GH_TOKEN=${ACTION_TOKEN}
