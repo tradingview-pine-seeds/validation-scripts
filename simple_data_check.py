@@ -70,7 +70,8 @@ def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_f
         elif name == "description":
             errors.append(F'The {sym_file} file contains empty "description" fields')
         else:  # "pricescale"
-            errors.append(F'The {sym_file} file contains invalid values for the "pricescale" field. The value should be a power of 10: 1, 10, …, 10000000000000000000000. The number of zeros represents the number of decimal places.')
+            errors.append(F'The {sym_file} file contains invalid values for the "pricescale" field. The value should be a power of 10: 1, 10, …, 10000000000000000000000. ' +
+                          'The number of zeros represents the number of decimal places.')
     if quantity > 0 and isinstance(values, list) and len(values) != quantity:
         errors.append(F'The number of the {name} fields does not match the number of symbols in {sym_file}')
     return errors
@@ -143,7 +144,8 @@ def check_data_line(data_line, file_path, i):
         open_price, high_price, low_price, close_price = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4])
         _, volume = datetime.strptime(vals[0], '%Y%m%dT'), float(vals[5])
     except (ValueError, TypeError):
-        messages.append(F'{file_path}:{i} contains invalid value types. Types must be: string(YYYYMMDDT), float, float, float, float, float. The float value can\'t be NAN/+INF/-INF')
+        messages.append(F'{file_path}:{i} contains invalid value types. ' +
+                        'Types must be: string(YYYYMMDDT), float, float, float, float, float. The float value can\'t be NAN/+INF/-INF')
     else:
         date = vals[0]
         if not (open_price <= high_price >= close_price >= low_price <= open_price and high_price >= low_price):
@@ -204,8 +206,10 @@ def main():
     for symbol in symbols:
         file_path = F'data/{symbol}.csv'
         if not (exists(file_path) and isfile(file_path)):
-            problems["missed_files"].append(symbol)
-            continue
+            file_path = F'data/{symbol}.CSV'
+            if not (exists(file_path) and isfile(file_path)):
+                problems["missed_files"].append(symbol)
+                continue
         check_datafile(file_path, problems)
     # report warnings
     if len(problems["missed_files"]) > 0:
