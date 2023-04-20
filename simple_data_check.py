@@ -5,6 +5,7 @@ the specification: https://github.com/tradingview-pine-seeds/pine-seeds-docs/blo
 """
 
 
+import glob
 import json
 import os
 from os import getenv
@@ -180,6 +181,26 @@ def check_datafile(file_path, problems):
                 dates.add(date)
 
 
+def check_data_files(symbols, problems):
+    """ check all files into data/ folder """
+    sym_set = set(symbols)
+    for file in glob.glob("data/*"):
+        parts = file.split("/")[1].split(".")
+        if len(parts) != 2:
+            problems["errors"].append(F'{file}: file have wrong name')
+            continue
+        if parts[1] not in ("csv", "CSV"):
+            problems["errors"].append(F'{file}: file have wrong extension')
+            continue
+        if parts[0] not in sym_set:
+            problems["errors"].append(F'{file}: file have have no corresponding symbol')
+            continue
+        sym_set.discard(parts[0])
+        check_datafile(file, problems)
+    for symbol in sym_set:
+        problems["missed_files"].append(symbol)
+
+
 def fail(msg):
     """ report about fail and exit with non-zero exit code"""
     if REPORTS_PATH is None:
@@ -203,14 +224,7 @@ def main():
     else:
         symbols, sym_errors = check_symbol_info(sym_file_path)
         problems["errors"] = sym_errors
-    for symbol in symbols:
-        file_path = F'data/{symbol}.csv'
-        if not (exists(file_path) and isfile(file_path)):
-            file_path = F'data/{symbol}.CSV'
-            if not (exists(file_path) and isfile(file_path)):
-                problems["missed_files"].append(symbol)
-                continue
-        check_datafile(file_path, problems)
+    check_data_files(symbols, problems)
     # report warnings
     if len(problems["missed_files"]) > 0:
         warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
