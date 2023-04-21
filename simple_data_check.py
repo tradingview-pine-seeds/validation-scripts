@@ -180,20 +180,19 @@ def check_datafile(file_path, problems):
                 last_date = date
                 dates.add(date)
 
-
-def check_data_files(symbols, problems):
+def check_data_files(sym_file_path, symbols, problems):
     """ check all files into data/ folder """
     sym_set = set(symbols)
     for file in glob.glob("data/*"):
         parts = file.split("/")[1].split(".")
         if len(parts) != 2:
-            problems["errors"].append(F'{file}: file have wrong name')
+            problems["errors"].append(F'Invalid file name. Check that {file} has a valid name and extension.')
             continue
         if parts[1] not in ("csv", "CSV"):
-            problems["errors"].append(F'{file}: file have wrong extension')
+            problems["errors"].append(F'Invalid file extension. The {file} file format must be CSV.')
             continue
         if parts[0] not in sym_set:
-            problems["errors"].append(F'{file}: file have have no corresponding symbol')
+            problems["errors"].append(F'There is no corresponding symbol for {file} in {sym_file_path}.')
             continue
         sym_set.discard(parts[0])
         check_datafile(file, problems)
@@ -220,11 +219,11 @@ def main():
     problems = {"errors": [], "missed_files": []}
     if not (exists(sym_file_path) and isfile(sym_file_path)):
         problems["errors"] = [F'The "{sym_file_path}" file does not exist. Check that you have not deleted the file or modified its name/path']
-        symbols = []
     else:
         symbols, sym_errors = check_symbol_info(sym_file_path)
         problems["errors"] = sym_errors
-    check_data_files(symbols, problems)
+        if len(symbols) > 0:
+            check_data_files(sym_file_path, symbols, problems)
     # report warnings
     if len(problems["missed_files"]) > 0:
         warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
