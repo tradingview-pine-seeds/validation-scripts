@@ -9,6 +9,13 @@ mv temp/* .
 mv temp//.git* .
 rmdir temp
 
+
+# remove unused branches before creating new
+git checkout master
+# delete merged and unmerged remote branches
+git branch --merged | egrep -v "(^\*|master)" | xargs -I % sh -c 'git branch -D %; git push --delete origin %';
+git branch --no-merged | egrep -v "(^\*|master)" | xargs -I % sh -c 'git branch -D %; git push --delete origin %';
+
 # create a new branch for update
 git checkout master
 PR_BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
