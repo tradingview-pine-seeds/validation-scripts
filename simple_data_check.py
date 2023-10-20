@@ -144,7 +144,7 @@ def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], 
         for val in (vals[i] for i in range(1, 6)):
             if FLOAT_RE.match(val) is None:
                 raise ValueError
-        open_price, high_price, low_price, close_price = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4])
+        open_price, high_price, low_price, close_price, volume = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4]), float(vals[5])
     except ValueError:
         check_ok = False
         messages.append(F'{file_path}:{i} float values validation error. The float value can\'t be NAN/+INF/-INF') 
@@ -152,7 +152,7 @@ def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], 
     try:
         if len(vals[0]) != 9:  # value '202291T' is considered as correct date 2022/09/01 by datetime.strptime but specification require zero-padded values
             raise ValueError
-        _, volume = datetime.strptime(vals[0], '%Y%m%dT'), float(vals[5])
+        _ = datetime.strptime(vals[0], '%Y%m%dT')
     except (ValueError, TypeError):
         check_ok = False
         messages.append(F'{file_path}:{i} date validation error, date format have to be YYYYMMDDT, for example: 20230101T')
