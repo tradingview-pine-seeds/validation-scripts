@@ -4,7 +4,7 @@ This script performs data checks according to
 the specification: https://github.com/tradingview-pine-seeds/pine-seeds-docs/blob/main/data.md
 """
 
-
+from __future__ import annotations
 import glob
 import json
 import os
@@ -12,18 +12,19 @@ from os import getenv
 from os.path import exists, isfile
 from sys import exit as sys_exit, argv
 from datetime import datetime
-from re import compile as re_compile
+from re import Pattern, compile as re_compile
+from typing import Any, Dict, List, Tuple
 
 
-TODAY = datetime.now().strftime("%Y%m%dT")
-FLOAT_RE = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
-SYMBOL_RE = re_compile(r'^[_.0-9A-Z]+$')
-DESCRIPTION_RE = re_compile(r'^.+$')
-PRICESCALE_RE = re_compile(r'^1(0){0,22}$')
-REPORTS_PATH = argv[1] if len(argv) > 1 else None
+TODAY: str = datetime.now().strftime("%Y%m%dT")
+FLOAT_RE: Pattern[str] = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
+SYMBOL_RE: Pattern[str] = re_compile(r'^[_.0-9A-Z]+$')
+DESCRIPTION_RE: Pattern[str] = re_compile(r'^.+$')
+PRICESCALE_RE: Pattern[str] = re_compile(r'^1(0){0,22}$')
+REPORTS_PATH: str = argv[1] if len(argv) > 1 else None
 
 
-def check_type(values, val_type):
+def check_type(values: Any, val_type: type) -> bool:
     """ check that values is list of types or single type value """
     if isinstance(values, list):
         for val in values:
@@ -34,7 +35,7 @@ def check_type(values, val_type):
         return isinstance(values, val_type)
 
 
-def check_length(values: any, max_length: int):
+def check_length(values: Any, max_length: int) -> bool:
     """ check length of each element in values. Return True only when all elements have length less or equal to max_length."""
     if isinstance(values, list):
         for val in values:
@@ -45,7 +46,7 @@ def check_length(values: any, max_length: int):
     return True
 
 
-def check_regexp(values, regexp):
+def check_regexp(values: Any, regexp: Pattern[str]) -> bool:
     """ check that str() of each element in values match to provided regexp """
     if isinstance(values, list):
         for val in values:
@@ -56,7 +57,7 @@ def check_regexp(values, regexp):
     return True
 
 
-def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_file):
+def check_field_data(name: str, values: Any, val_type: type, regexp: Pattern[str], max_length: int, quantity: int, sym_file: str) -> List[str]:
     """ check the field data according type, max_length and quantity of elements """
     errors = []
     if not check_type(values, val_type):
@@ -78,7 +79,7 @@ def check_field_data(name, values, val_type, regexp, max_length, quantity, sym_f
     return errors
 
 
-def get_duplicates(items: list):
+def get_duplicates(items: List[Any]) -> set:
     """ Returns the set of duplicated items in list """
     existing = set()
     dup = set()
@@ -90,11 +91,11 @@ def get_duplicates(items: list):
     return dup
 
 
-def check_symbol_info(sym_file):
+def check_symbol_info(sym_file: str) -> Tuple[List[str], List[str]]:
     """ check symbol file """
-    errors = []
+    errors: List[str] = []
     with open(sym_file) as file:
-        sym_data = json.load(file)
+        sym_data: Dict[str, Any] = json.load(file)
     expected_fields = set(("symbol", "description", "pricescale"))
     exists_fields = set(sym_data.keys())
     if exists_fields != expected_fields:
@@ -103,7 +104,7 @@ def check_symbol_info(sym_file):
         else:
             errors.append(F"The {sym_file} file doesn't have required fields: {', '.join(i for i in expected_fields.difference(exists_fields))}")
         return [], errors
-    symbols = sym_data["symbol"]
+    symbols: List[str] = sym_data["symbol"]
     errors = check_field_data("symbol", symbols, str, SYMBOL_RE, 42, 0, sym_file)
     if len(set(symbols)) != len(symbols):
         errors.append(F"The {sym_file} file contain duplicated symbols: {', '.join(get_duplicates(symbols))}. All symbols must have unique names.")
@@ -120,10 +121,10 @@ def check_symbol_info(sym_file):
     return symbols, errors
 
 
-def check_data_line(data_line, file_path, i):
+def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], str]:
     """ check values of data file's line """
-    messages = []
-    date = None
+    messages: List[str] = []
+    date: str = None
     if data_line.startswith("#"):
         messages.append(F'{file_path} has comment in line {i}')
         return messages, date
@@ -136,18 +137,27 @@ def check_data_line(data_line, file_path, i):
     if len(vals) != 6:  # YYYYMMDDT, o, h, l, c, v
         messages.append(F'{file_path}:{i} contains incorrect number of elements (expected: 6, actual: {len(vals)})')
         return messages, date
+    
+    check_ok = True
+    # validate float
     try:
         for val in (vals[i] for i in range(1, 6)):
             if FLOAT_RE.match(val) is None:
                 raise ValueError
+        open_price, high_price, low_price, close_price, volume = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4]), float(vals[5])
+    except ValueError:
+        check_ok = False
+        messages.append(F'{file_path}:{i} float values validation error. The float value can\'t be NAN/+INF/-INF') 
+    # validate date
+    try:
         if len(vals[0]) != 9:  # value '202291T' is considered as correct date 2022/09/01 by datetime.strptime but specification require zero-padded values
             raise ValueError
-        open_price, high_price, low_price, close_price = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4])
-        _, volume = datetime.strptime(vals[0], '%Y%m%dT'), float(vals[5])
+        _ = datetime.strptime(vals[0], '%Y%m%dT')
     except (ValueError, TypeError):
-        messages.append(F'{file_path}:{i} contains invalid value types. ' +
-                        'Types must be: string(YYYYMMDDT), float, float, float, float, float. The float value can\'t be NAN/+INF/-INF')
-    else:
+        check_ok = False
+        messages.append(F'{file_path}:{i} date validation error, date format have to be YYYYMMDDT, for example: 20230101T')
+    
+    if check_ok:
         date = vals[0]
         if not (open_price <= high_price >= close_price >= low_price <= open_price and high_price >= low_price):
             messages.append(F'{file_path}:{i} contains invalid OHLC values. Values must comply with the rules: h >= o, h >= l, h >= c, l <= o, l <= c).')
@@ -160,7 +170,7 @@ def check_data_line(data_line, file_path, i):
     return messages, date
 
 
-def check_datafile(file_path, problems):
+def check_datafile(file_path: str, problems: Dict[str, List[Any]]) -> None:
     """ Check data file """
     dates = set()
     last_date = ""
@@ -180,7 +190,7 @@ def check_datafile(file_path, problems):
                 last_date = date
                 dates.add(date)
 
-def check_data_files(sym_file_path, symbols, problems):
+def check_data_files(sym_file_path: str, symbols: List[str], problems: Dict[str, List[Any]]) -> None:
     """ check all files into data/ folder """
     sym_set = set(symbols)
     for file in glob.glob("data/*"):
@@ -200,7 +210,7 @@ def check_data_files(sym_file_path, symbols, problems):
         problems["missed_files"].append(symbol)
 
 
-def fail(msg):
+def fail(msg: str) -> None:
     """ report about fail and exit with non-zero exit code"""
     if REPORTS_PATH is None:
         print(msg)
@@ -210,7 +220,7 @@ def fail(msg):
     sys_exit(0)
 
 
-def main():
+def main() -> None:
     """ main routine """
     group = getenv("GROUP")
     if group == "":
@@ -224,6 +234,7 @@ def main():
         problems["errors"] = sym_errors
         if len(symbols) > 0:
             check_data_files(sym_file_path, symbols, problems)
+    
     # report warnings
     if len(problems["missed_files"]) > 0:
         warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
@@ -232,6 +243,7 @@ def main():
         else:
             with open(os.path.join(REPORTS_PATH, "warnings.txt"), "a") as file:
                 file.write(warning)
+    
     # report errors
     if len(problems["errors"]) > 0:
         problems_list = "\n ".join(problems["errors"])
