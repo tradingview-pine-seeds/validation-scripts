@@ -31,6 +31,7 @@ else
 fi
 
 set -e
+
 # create a new branch for update
 git checkout master
 PR_BRANCH_NAME="update_$(git log -n 1 --pretty=format:%H)"
