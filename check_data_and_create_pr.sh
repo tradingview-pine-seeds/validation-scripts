@@ -10,18 +10,14 @@ mv temp//.git* .
 rmdir temp
 
 
-# check GH PR limit 3k files changing
-# if [[ -z "${FROM_COMMIT}" ]]; then
-#     FROM_COMMIT=$(git rev-list --max-parents=0 HEAD)
-#     TO_COMMIT="HEAD"
-# fi
 
 git config diff.renameLimit 999999
-#CHANGED_DATA_FILES=$(git diff --name-only --diff-filter=AM "$FROM_COMMIT".."$TO_COMMIT" | grep csv)
-CHANGED_DATA_FILES=${git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | wc -l}
-if [["$CHANGED_DATA_FILES" -gt 3000 ]]; then
+CHANGED_DATA_FILES=$(git diff --name-only -r HEAD^1 HEAD | wc -l)
+echo "Files added/changed: "
+echo $CHANGED_DATA_FILES
+if [[ $CHANGED_DATA_FILES > 3000 ]]; then
     echo "More then 3000 files added/changed. Please, push commit with changes less than in 3000 files"
-    exit(1)
+    exit 1
 fi
 
 
