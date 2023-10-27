@@ -13,10 +13,8 @@ rmdir temp
 
 git config diff.renameLimit 999999
 CHANGED_DATA_FILES=$(git diff --name-only -r HEAD^1 HEAD | wc -l)
-echo "Files added/changed: "
-echo $CHANGED_DATA_FILES
 if [[ $CHANGED_DATA_FILES > 3000 ]]; then
-    echo "More then 3000 files added/changed. Please, push commit with changes less than in 3000 files"
+    echo More than 3000 files added/changed ($CHANGED_DATA_FILES files total). Please, push commit with changes in less than 3000 files
     exit 1
 fi
 
