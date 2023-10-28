@@ -28,6 +28,7 @@ then
     git branch --no-merged | grep "update_*" | xargs -I % bash -c 'git branch -D %; git push --delete origin %';
 else
     echo "No temporary branch to remove"
+
 fi
 
 set -e
