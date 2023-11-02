@@ -8,7 +8,6 @@ from __future__ import annotations
 import glob
 import json
 import os
-from os import getenv
 from os.path import exists, isfile
 from sys import exit as sys_exit, argv
 from datetime import datetime
@@ -22,6 +21,8 @@ SYMBOL_RE: Pattern[str] = re_compile(r'^[_.0-9A-Z]+$')
 DESCRIPTION_RE: Pattern[str] = re_compile(r'^.+$')
 PRICESCALE_RE: Pattern[str] = re_compile(r'^1(0){0,22}$')
 REPORTS_PATH: str = argv[1] if len(argv) > 1 else None
+MAX_ERRORS_IN_MSG: int = int(os.getenv("MAX_ERRORS_IN_MSG", 50))   # max show errors in console, file or PR message
+THRESHOLD_ERR: int = int(os.getenv('THRESHOLD_ERR', 10))
 
 
 def check_type(values: Any, val_type: type) -> bool:
@@ -234,10 +235,15 @@ def main() -> None:
         problems["errors"] = sym_errors
         if len(symbols) > 0:
             check_data_files(sym_file_path, symbols, problems)
-    
+
     # report warnings
-    if len(problems["missed_files"]) > 0:
-        warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
+    len_problems_missed_files = len(problems["missed_files"])
+    if len_problems_missed_files > 0:
+        if len_problems_missed_files > MAX_ERRORS_IN_MSG + THRESHOLD_ERR:
+            warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"][:MAX_ERRORS_IN_MSG])} and {len_problems_missed_files - MAX_ERRORS_IN_MSG} other CSV files.\n'
+        else:       
+            warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
+        
         if REPORTS_PATH is None:
             print(warning)
         else:
@@ -245,9 +251,16 @@ def main() -> None:
                 file.write(warning)
     
     # report errors
-    if len(problems["errors"]) > 0:
-        problems_list = "\n ".join(problems["errors"])
-        fail(F'ERROR: the following issues were found in the repository files:\n {problems_list}\n')
+    len_problems_errors = len(problems["errors"])
+    if len_problems_errors > 0:
+        if len_problems_errors > MAX_ERRORS_IN_MSG + THRESHOLD_ERR:
+            problems_list = "\n ".join(problems["errors"][:MAX_ERRORS_IN_MSG])
+            error_msg = F'ERROR: the following issues were found in the repository files:\n {problems_list} and {len_problems_errors - MAX_ERRORS_IN_MSG} other errors. \n'
+        else:
+            problems_list = "\n ".join(problems["errors"])
+            error_msg = F'ERROR: the following issues were found in the repository files:\n {problems_list}\n'
+        
+        fail(error_msg)
 
 
 if __name__ == "__main__":
