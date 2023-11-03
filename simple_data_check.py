@@ -223,7 +223,7 @@ def fail(msg: str) -> None:
 
 def main() -> None:
     """ main routine """
-    group = getenv("GROUP")
+    group = os.getenv("GROUP")
     if group == "":
         fail("ERROR: the GROUP environment variable is not set")
     sym_file_path = F"symbol_info/{group}.json"
