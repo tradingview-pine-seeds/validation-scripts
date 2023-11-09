@@ -25,7 +25,7 @@ total_branches=$(($merged_branches+$nomerged_branches))
 if [[ $total_branches > 0 ]]
 then
     git branch -r --merged | grep "update_*" | cut -d "/" -f 2 | xargs git push --delete origin
-    git branch -r --no-merged | grep "update_*" | xargs -I % bash -c 'git branch -D %; git push --delete origin %';
+    git branch -r --no-merged | grep "update_*" | cut -d "/" -f 2| xargs git push --delete origin
 else
     echo "No temporary branch to remove"
 
