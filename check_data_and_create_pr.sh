@@ -18,14 +18,14 @@ set +o pipefail
 git checkout master
 git branch --list | cat
 merged_branches=$(git branch -r --merged | grep "update_*" -c)
-nomerged_branches=$(git branch --no-merged | grep "update_*" -c)
+nomerged_branches=$(git branch -r --no-merged | grep "update_*" -c)
 total_branches=$(($merged_branches+$nomerged_branches))
 
 # delete all merged and unmerged remote `update_*` branches
 if [[ $total_branches > 0 ]]
 then
     git branch -r --merged | grep "update_*" | cut -d "/" -f 2 | xargs git push --delete origin
-    git branch --no-merged | grep "update_*" | xargs -I % bash -c 'git branch -D %; git push --delete origin %';
+    git branch -r --no-merged | grep "update_*" | xargs -I % bash -c 'git branch -D %; git push --delete origin %';
 else
     echo "No temporary branch to remove"
 
