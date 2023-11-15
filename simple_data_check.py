@@ -25,6 +25,7 @@ MAX_ERRORS_IN_MSG: int = int(os.getenv("MAX_ERRORS_IN_MSG", 50))   # max show er
 THRESHOLD_ERR: int = int(os.getenv('THRESHOLD_ERR', 10))
 
 
+
 def check_type(values: Any, val_type: type) -> bool:
     """ check that values is list of types or single type value """
     if isinstance(values, list):
