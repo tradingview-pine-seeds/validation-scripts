@@ -8,7 +8,6 @@ from __future__ import annotations
 import glob
 import json
 import os
-from os import getenv
 from os.path import exists, isfile
 from sys import exit as sys_exit, argv
 from datetime import datetime
@@ -21,7 +20,9 @@ FLOAT_RE: Pattern[str] = re_compile(r'^[+-]?([0-9]*[.])?[0-9]+$')
 SYMBOL_RE: Pattern[str] = re_compile(r'^[_.0-9A-Z]+$')
 DESCRIPTION_RE: Pattern[str] = re_compile(r'^.+$')
 PRICESCALE_RE: Pattern[str] = re_compile(r'^1(0){0,22}$')
-REPORTS_PATH: str = argv[1] if len(argv) > 1 else None
+MAX_ERRORS_IN_MSG: int = int(os.getenv("MAX_ERRORS_IN_MSG", 50))   # max show errors in console, file or PR message
+THRESHOLD_ERR: int = int(os.getenv('THRESHOLD_ERR', 10))
+REPORTS_PATH: str = argv[1] if len(argv) > 1 else "."
 
 
 def check_type(values: Any, val_type: type) -> bool:
@@ -74,7 +75,7 @@ def check_field_data(name: str, values: Any, val_type: type, regexp: Pattern[str
         else:  # "pricescale"
             errors.append(F'The {sym_file} file contains invalid values for the "pricescale" field. The value should be a power of 10: 1, 10, …, 10000000000000000000000. ' +
                           'The number of zeros represents the number of decimal places.')
-    if quantity > 0 and isinstance(values, list) and len(values) != quantity:
+    if quantity > 0 and (len(values) != quantity if isinstance(values, list) else quantity != 1):
         errors.append(F'The number of the {name} fields does not match the number of symbols in {sym_file}')
     return errors
 
@@ -113,18 +114,15 @@ def check_symbol_info(sym_file: str) -> Tuple[List[str], List[str]]:
     length = len(symbols) if isinstance(symbols, list) else 1
     descriptions = sym_data["description"]
     errors += check_field_data("description", descriptions, str, DESCRIPTION_RE, 128, length, sym_file)
-    desc_length = len(descriptions) if isinstance(descriptions, list) else 1
-    if desc_length != length:  # strictly check descriptions length
-        errors.append(F'The number of symbol descriptions does not match the number of symbols in {sym_file}')
     pricescale = sym_data["pricescale"]
     errors += check_field_data("pricescale", pricescale, int, PRICESCALE_RE, 0, length, sym_file)
     return symbols, errors
 
 
-def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], str]:
+def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], str|None]:
     """ check values of data file's line """
     messages: List[str] = []
-    date: str = None
+    date = None
     if data_line.startswith("#"):
         messages.append(F'{file_path} has comment in line {i}')
         return messages, date
@@ -140,6 +138,7 @@ def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], 
     
     check_ok = True
     # validate float
+    open_price, high_price, low_price, close_price, volume = 0.0, 0.0, 0.0, 0.0, 0.0
     try:
         for val in (vals[i] for i in range(1, 6)):
             if FLOAT_RE.match(val) is None:
@@ -222,7 +221,7 @@ def fail(msg: str) -> None:
 
 def main() -> None:
     """ main routine """
-    group = getenv("GROUP")
+    group = os.getenv("GROUP")
     if group == "":
         fail("ERROR: the GROUP environment variable is not set")
     sym_file_path = F"symbol_info/{group}.json"
@@ -234,10 +233,15 @@ def main() -> None:
         problems["errors"] = sym_errors
         if len(symbols) > 0:
             check_data_files(sym_file_path, symbols, problems)
-    
+
     # report warnings
-    if len(problems["missed_files"]) > 0:
-        warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
+    len_problems_missed_files = len(problems["missed_files"])
+    if len_problems_missed_files > 0:
+        if len_problems_missed_files > MAX_ERRORS_IN_MSG + THRESHOLD_ERR:
+            warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"][:MAX_ERRORS_IN_MSG])} and {len_problems_missed_files - MAX_ERRORS_IN_MSG} other CSV files.\n'
+        else:       
+            warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
+        
         if REPORTS_PATH is None:
             print(warning)
         else:
@@ -245,9 +249,16 @@ def main() -> None:
                 file.write(warning)
     
     # report errors
-    if len(problems["errors"]) > 0:
-        problems_list = "\n ".join(problems["errors"])
-        fail(F'ERROR: the following issues were found in the repository files:\n {problems_list}\n')
+    len_problems_errors = len(problems["errors"])
+    if len_problems_errors > 0:
+        if len_problems_errors > MAX_ERRORS_IN_MSG + THRESHOLD_ERR:
+            problems_list = "\n ".join(problems["errors"][:MAX_ERRORS_IN_MSG])
+            error_msg = F'ERROR: the following issues were found in the repository files:\n {problems_list} and {len_problems_errors - MAX_ERRORS_IN_MSG} other errors. \n'
+        else:
+            problems_list = "\n ".join(problems["errors"])
+            error_msg = F'ERROR: the following issues were found in the repository files:\n {problems_list}\n'
+        
+        fail(error_msg)
 
 
 if __name__ == "__main__":
