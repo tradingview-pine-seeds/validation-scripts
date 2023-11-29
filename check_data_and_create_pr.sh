@@ -70,4 +70,4 @@ python3 scripts/simple_data_check.py
 set +e
 export GH_TOKEN=${ACTION_TOKEN}
 gh api -X POST /repos/tradingview-pine-seeds/${REPO_NAME}/pulls -f base="master" -f head="${REPO_OWNER}:${PR_BRANCH_NAME}" -f title="Upload data" > /dev/null 2>&1
-echo 
+echo
