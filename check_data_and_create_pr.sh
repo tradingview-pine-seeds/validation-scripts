@@ -4,7 +4,22 @@
 set -e
 set +o pipefail
 
-bash scripts/validate_token.sh
+export TERM=xterm-color
+GRN="\033[1;92m"  # success messages, green
+RED="\033[1;91m"  # error messages, red
+BL="\033[1;94m"   # info messages (usually skip messages), blue
+YEL="\033[1;93m"  # warnings, yellow
+MGN='\033[1;95m'  # start step info, magenta
+CYA='\033[1;96m'  # more bright info messages, cyan
+ENDC="\033[0m"    # end of color message
+
+color_message() {
+    message=$1
+    color=$2
+    echo -e "${color}${message}${ENDC}"
+}
+
+. scripts/validate_token.sh
 
 # checkout fork repo (via temp dir as current dir is not emply and it does't allow to check out repo in it)
 git clone "https://${REPO_OWNER}:${ACTION_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git" temp
@@ -26,9 +41,6 @@ if [[ $total_branches > 0 ]]
 then
     git branch -r --merged | grep "update_*" | cut -d "/" -f 2 | xargs git push --delete origin
     git branch -r --no-merged | grep "update_*" | cut -d "/" -f 2| xargs git push --delete origin
-else
-    echo "No temporary branch to remove"
-
 fi
 
 set -e
@@ -44,7 +56,7 @@ export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
 
 # close previous PR if it exists
-bash scripts/close_pr_if_exists.sh
+. scripts/close_pr_if_exists.sh
 
 # create new PR
 set +e

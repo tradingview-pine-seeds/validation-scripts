@@ -23,7 +23,9 @@ PRICESCALE_RE: Pattern[str] = re_compile(r'^1(0){0,22}$')
 REPORTS_PATH: str = argv[1] if len(argv) > 1 else None
 MAX_ERRORS_IN_MSG: int = int(os.getenv("MAX_ERRORS_IN_MSG", 50))   # max show errors in console, file or PR message
 THRESHOLD_ERR: int = int(os.getenv('THRESHOLD_ERR', 10))
-
+RED="\033[1;91m"  # error messages, red
+YEL="\033[1;93m"  # warnings, yellow
+ENDC="\033[0m"    # end of color message
 
 
 def check_type(values: Any, val_type: type) -> bool:
@@ -215,7 +217,7 @@ def check_data_files(sym_file_path: str, symbols: List[str], problems: Dict[str,
 def fail(msg: str) -> None:
     """ report about fail and exit with non-zero exit code"""
     if REPORTS_PATH is None:
-        print(msg)
+        print(RED+msg+ENDC)
         sys_exit(1)
     with open(os.path.join(REPORTS_PATH, "report.txt"), "a") as file:
         file.write(msg)
@@ -246,7 +248,7 @@ def main() -> None:
             warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
         
         if REPORTS_PATH is None:
-            print(warning)
+            print(YEL+warning+ENDC)
         else:
             with open(os.path.join(REPORTS_PATH, "warnings.txt"), "a") as file:
                 file.write(warning)
