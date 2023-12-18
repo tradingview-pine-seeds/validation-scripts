@@ -18,6 +18,7 @@ fi
 if  [[ "$RESP" == *"error"* ]];
 then
   echo $(color_message "Insufficient scope error. Provide ACTION_TOKEN with the repo, workflow, and admin:org scopes." $RED)
+  echo "Insufficient scope error. Provide ACTION_TOKEN with the repo, workflow, and admin:org scopes."
   exit 1
 fi
 
