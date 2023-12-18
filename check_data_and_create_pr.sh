@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # setted by GitHub
-set -ex
 set +o pipefail
 
 export TERM=xterm-color
@@ -21,6 +20,7 @@ color_message() {
 
 . scripts/validate_token.sh
 
+set -e
 # checkout fork repo (via temp dir as current dir is not emply and it does't allow to check out repo in it)
 git clone "https://${REPO_OWNER}:${ACTION_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git" temp
 mv temp/* .

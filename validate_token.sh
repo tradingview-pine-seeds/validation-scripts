@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 if [ -z "${ACTION_TOKEN}" ]
 then
   echo $(color_message "Failed to find ACTION_TOKEN. Make sure that ACTION_TOKEN is set in the repository secrets." $RED)
@@ -18,7 +16,6 @@ fi
 if  [[ "$RESP" == *"error"* ]];
 then
   echo $(color_message "Insufficient scope error. Provide ACTION_TOKEN with the repo, workflow, and admin:org scopes." $RED)
-  echo "Insufficient scope error. Provide ACTION_TOKEN with the repo, workflow, and admin:org scopes."
   exit 1
 fi
 
