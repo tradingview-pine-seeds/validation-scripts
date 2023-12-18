@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # setted by GitHub
-set -e
+set -ex
 set +o pipefail
 
 export TERM=xterm-color

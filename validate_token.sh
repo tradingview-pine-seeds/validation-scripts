@@ -1,3 +1,6 @@
+#!/bin/bash
+
+set -x
 
 if [ -z "${ACTION_TOKEN}" ]
 then

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 echo "${ACTION_TOKEN}" | gh auth login --with-token > /dev/null 2>&1
 if [ -z $? ]
 then
