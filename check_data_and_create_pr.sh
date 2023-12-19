@@ -27,6 +27,14 @@ mv temp/* .
 mv temp//.git* .
 rmdir temp
 
+if [ ! -d "data" ]; then
+    echo $(color_message "'data' directory is empty or not exist" $RED)
+    exit 1
+elif [[ $(ls "data" | wc -l) -eq 0 ]]; then
+    echo $(color_message "'data' directory is empty or not exist" $RED)
+    exit 1
+fi
+
 set +e
 set +o pipefail
 # remove unused branches before creating new
