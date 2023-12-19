@@ -1,23 +1,57 @@
 #!/bin/bash
+
+# setted by GitHub
+set +o pipefail
+
+export TERM=xterm-color
+GRN="\033[1;92m"  # success messages, green
+RED="\033[1;91m"  # error messages, red
+BL="\033[1;94m"   # info messages (usually skip messages), blue
+YEL="\033[1;93m"  # warnings, yellow
+MGN='\033[1;95m'  # start step info, magenta
+CYA='\033[1;96m'  # more bright info messages, cyan
+ENDC="\033[0m"    # end of color message
+
+color_message() {
+    message=$1
+    color=$2
+    echo -e "${color}${message}${ENDC}"
+}
+
+. scripts/validate_token.sh
+
 set -e
-
-bash scripts/validate_token.sh
-
 # checkout fork repo (via temp dir as current dir is not emply and it does't allow to check out repo in it)
 git clone "https://${REPO_OWNER}:${ACTION_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git" temp
 mv temp/* .
 mv temp//.git* .
 rmdir temp
 
-
-
-git config diff.renameLimit 999999
-CHANGED_DATA_FILES=$(git diff --name-only -r HEAD^1 HEAD | wc -l)
-if [[ $CHANGED_DATA_FILES -gt 3000 ]]; then
-    echo "More than 3000 files added/changed ($CHANGED_DATA_FILES files total). Please, push commit with changes in less than 3000 files"
+if [ ! -d "data" ]; then
+    echo $(color_message "'data' directory is empty or not exist" $RED)
+    exit 1
+elif [[ $(ls "data" | wc -l) -eq 0 ]]; then
+    echo $(color_message "'data' directory is empty or not exist" $RED)
     exit 1
 fi
 
+set +e
+set +o pipefail
+# remove unused branches before creating new
+git checkout master
+git branch --list | cat
+merged_branches=$(git branch -r --merged | grep "update_*" -c)
+nomerged_branches=$(git branch -r --no-merged | grep "update_*" -c)
+total_branches=$(($merged_branches+$nomerged_branches))
+
+# delete all merged and unmerged remote `update_*` branches
+if [[ $total_branches > 0 ]]
+then
+    git branch -r --merged | grep "update_*" | cut -d "/" -f 2 | xargs git push --delete origin
+    git branch -r --no-merged | grep "update_*" | cut -d "/" -f 2| xargs git push --delete origin
+fi
+
+set -e
 
 # create a new branch for update
 git checkout master
@@ -30,8 +64,10 @@ export GROUP=${REPO_NAME}
 python3 scripts/simple_data_check.py
 
 # close previous PR if it exists
-bash scripts/close_pr_if_exists.sh
+. scripts/close_pr_if_exists.sh
 
 # create new PR
+set +e
 export GH_TOKEN=${ACTION_TOKEN}
 gh api -X POST /repos/tradingview-pine-seeds/${REPO_NAME}/pulls -f base="master" -f head="${REPO_OWNER}:${PR_BRANCH_NAME}" -f title="Upload data" > /dev/null 2>&1
+echo 
