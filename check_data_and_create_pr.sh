@@ -25,7 +25,6 @@ set -e
 git clone "https://${REPO_OWNER}:${ACTION_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git" temp
 shopt -s dotglob
 mv temp/* .
-mv temp//.git* .
 rmdir temp
 
 if [ ! -d "data" ]; then
