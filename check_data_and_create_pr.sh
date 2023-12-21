@@ -28,7 +28,7 @@ mv temp/* .
 rmdir temp
 
 if [ ! -d "data" ]; then
-    echo $(color_message "ERROR: 'data' directory is empty or not exist for. Please add '.gitkeep' file in 'data' folder if need" $RED)
+    echo $(color_message "ERROR: 'data' directory is empty (for git) or not exist. Please add '.gitkeep' file in 'data' folder if need" $RED)
     exit 1
 fi
 
