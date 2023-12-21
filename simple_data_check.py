@@ -141,7 +141,7 @@ def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], 
     if len(vals) != 6:  # YYYYMMDDT, o, h, l, c, v
         messages.append(F'{file_path}:{i} contains incorrect number of elements (expected: 6, actual: {len(vals)})')
         return messages, date
-    
+
     check_ok = True
     # validate float
     try:
@@ -151,7 +151,7 @@ def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], 
         open_price, high_price, low_price, close_price, volume = float(vals[1]), float(vals[2]), float(vals[3]), float(vals[4]), float(vals[5])
     except ValueError:
         check_ok = False
-        messages.append(F'{file_path}:{i} float values validation error. The float value can\'t be NAN/+INF/-INF') 
+        messages.append(F'{file_path}:{i} float values validation error. The float value can\'t be NAN/+INF/-INF')
     # validate date
     try:
         if len(vals[0]) != 9:  # value '202291T' is considered as correct date 2022/09/01 by datetime.strptime but specification require zero-padded values
@@ -160,7 +160,7 @@ def check_data_line(data_line: str, file_path: str, i: int) -> Tuple[List[str], 
     except (ValueError, TypeError):
         check_ok = False
         messages.append(F'{file_path}:{i} date validation error, date format have to be YYYYMMDDT, for example: 20230101T')
-    
+
     if check_ok:
         date = vals[0]
         if not (open_price <= high_price >= close_price >= low_price <= open_price and high_price >= low_price):
@@ -202,7 +202,10 @@ def check_data_files(sym_file_path: str, symbols: List[str], problems: Dict[str,
         if len(parts) != 2:
             problems["errors"].append(F'Invalid file name. Check that {file} has a valid name and extension.')
             continue
-        if parts[1] not in ("csv", "CSV"):
+        if parts[1] in {"gitkeep"}:
+            sym_set.discard(parts[0])
+            continue
+        if parts[1] not in {"csv", "CSV"}:
             problems["errors"].append(F'Invalid file extension. The {file} file format must be CSV.')
             continue
         if parts[0] not in sym_set:
@@ -244,15 +247,15 @@ def main() -> None:
     if len_problems_missed_files > 0:
         if len_problems_missed_files > MAX_ERRORS_IN_MSG + THRESHOLD_ERR:
             warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"][:MAX_ERRORS_IN_MSG])} and {len_problems_missed_files - MAX_ERRORS_IN_MSG} other CSV files.\n'
-        else:       
+        else:
             warning = F'WARNING: the following symbols have no corresponding CSV files in the data folder: {", ".join(problems["missed_files"])}\n'
-        
+
         if REPORTS_PATH is None:
             print(YEL+warning+ENDC)
         else:
             with open(os.path.join(REPORTS_PATH, "warnings.txt"), "a") as file:
                 file.write(warning)
-    
+
     # report errors
     len_problems_errors = len(problems["errors"])
     if len_problems_errors > 0:
@@ -262,7 +265,7 @@ def main() -> None:
         else:
             problems_list = "\n ".join(problems["errors"])
             error_msg = F'ERROR: the following issues were found in the repository files:\n {problems_list}\n'
-        
+
         fail(error_msg)
 
 
