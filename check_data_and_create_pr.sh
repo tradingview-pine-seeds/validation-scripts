@@ -39,13 +39,16 @@ git checkout master
 git branch --list | cat
 merged_branches=$(git branch -r --merged | grep "update_*" -c)
 nomerged_branches=$(git branch -r --no-merged | grep "update_*" -c)
-total_branches=$(($merged_branches+$nomerged_branches))
 
 # delete all merged and unmerged remote `update_*` branches
-if [[ $total_branches > 0 ]]
+if [[ $merged_branches > 0 ]]
 then
     git branch -r --merged | grep "update_*" | cut -d "/" -f 2 | xargs git push --delete origin
-    git branch -r --no-merged | grep "update_*" | cut -d "/" -f 2| xargs git push --delete origin
+fi
+
+if [[ $nomerged_branches > 0 ]]
+then
+    git branch -r --no-merged | grep "update_*" | cut -d "/" -f 2 | xargs git push --delete origin
 fi
 
 set -e
